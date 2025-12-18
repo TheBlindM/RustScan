@@ -1,24 +1,31 @@
+//! 迭代 IP 和端口组合的 Socket 迭代器。
 use itertools::{iproduct, Product};
 use std::net::{IpAddr, SocketAddr};
 
 pub struct SocketIterator<'s> {
-    // product_it is a cartesian product iterator over
-    // the slices of ports and IP addresses.
+    // product_it 是一个笛卡尔积迭代器（交叉匹配，就是mysql中的连表），
+    //  端口列表 [80, 443]
+    //  地址列表 [1.1.1.1, 1.1.1.2]
+    // Product 的输出:
+    // 1.1.1.1:80，1.1.1.1:443，1.1.1.2:80， 1.1.1.2:443
     //
-    // The IP/port order is intentionally reversed here since we want
-    // the itertools::iproduct! macro below to generate the pairs with
-    // all the IPs for one port before moving on to the next one
-    // ("hold the port, go through all the IPs, then advance the port...").
-    // See also the comments in the iterator implementation for an example.
+    // 为什么RustScan要用笛卡尔积迭代器？
+    // 节省内存，假如你现在要扫描2个ip，和65535个端口，一般方法比如Tyan中就会将所有组合都存到Vec中那将是2*65535个，使用product的话，将是2个ip和65535个端口，并不会随扫描规模扩大而内存爆炸
+    //
+    // 为什么要把端口放前面，而不是Ip放前面？
+    //我们设想一下：
+    // 当ip在外层：会同时对一个ip连续发送成千上百个端口请求
+    // 当port在外层：会同时千上百个IP的一个端口发送请求
+    // 可以分散压力，避免阻塞，对一个ip发包过快，会导致socket长期处于SYN_SENT，或者SYN——Queue满啦直接被丢弃啦禁默丢弃（tcp三次握手）
     product_it:
         Product<Box<std::slice::Iter<'s, u16>>, Box<std::slice::Iter<'s, std::net::IpAddr>>>,
 }
 
-/// An iterator that receives a slice of IPs and ports and returns a Socket
-/// for each IP and port pair until all of these combinations are exhausted.
-/// The goal of this iterator is to go over every IP and port combination
-/// without generating a big memory footprint. The alternative would be
-/// generating a vector containing all these combinations.
+/// 一个迭代器，接收 IP 和端口的切片，并为每个 IP 和端口对返回一个 Socket，
+/// 直到所有这些组合都被用尽。
+/// 这个迭代器的目标是遍历每个 IP 和端口组合，
+/// 而不产生大的内存占用。另一种方法是
+/// 生成一个包含所有这些组合的向量。
 impl<'s> SocketIterator<'s> {
     pub fn new(ips: &'s [IpAddr], ports: &'s [u16]) -> Self {
         let ports_it = Box::new(ports.iter());
@@ -33,9 +40,9 @@ impl<'s> SocketIterator<'s> {
 impl Iterator for SocketIterator<'_> {
     type Item = SocketAddr;
 
-    /// Returns a socket based on the combination of one of the provided
-    /// IPs and ports or None when these combinations are exhausted. Every
-    /// IP will have the same port until a port is incremented.
+    /// 基于提供的 IP 和端口之一的组合返回一个 socket，
+    /// 或者当这些组合用尽时返回 None。
+    /// 每个 IP 将具有相同的端口，直到端口递增。
     ///
     /// let it = SocketIterator::new(&["127.0.0.1", "192.168.0.1"], &[80, 443]);
     /// it.next(); // 127.0.0.1:80

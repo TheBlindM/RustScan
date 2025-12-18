@@ -1,25 +1,25 @@
-//! Provides a means to read, parse and hold configuration options for scans.
+//! 提供一种读取、解析和保存扫描配置选项的方法。
 use clap::{Parser, ValueEnum};
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
 const LOWEST_PORT_NUMBER: u16 = 1;
 const TOP_PORT_NUMBER: u16 = 65535;
 
-/// Represents the strategy in which the port scanning will run.
-///   - Serial will run from start to end, for example 1 to 1_000.
-///   - Random will randomize the order in which ports will be scanned.
+/// 表示端口扫描运行的策略。
+///   - Serial 将从开始到结束运行，例如 1 到 1_000。
+///   - Random 将随机化端口扫描的顺序。
 #[derive(Deserialize, Debug, ValueEnum, Clone, Copy, PartialEq, Eq)]
 pub enum ScanOrder {
     Serial,
     Random,
 }
 
-/// Represents the scripts variant.
-///   - none will avoid running any script, only portscan results will be shown.
-///   - default will run the default embedded nmap script, that's part of RustScan since the beginning.
-///   - custom will read the ScriptConfig file and the available scripts in the predefined folders
+/// 表示脚本变体。
+///   - none 将避免运行任何脚本，只显示端口扫描结果。
+///   - default 将运行默认的嵌入式 nmap 脚本，这是 RustScan 从一开始就包含的一部分。
+///   - custom 将读取 ScriptConfig 文件和预定义文件夹中的可用脚本
 #[derive(Deserialize, Debug, ValueEnum, Clone, PartialEq, Eq, Copy)]
 pub enum ScriptsRequired {
     None,
@@ -27,7 +27,7 @@ pub enum ScriptsRequired {
     Custom,
 }
 
-/// Represents the range of ports to be scanned.
+/// 表示要扫描的端口范围。
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct PortRange {
     pub start: u16,
@@ -66,99 +66,96 @@ fn parse_range(input: &str) -> Result<PortRange, String> {
     help_template = "{bin} {version}\n{about}\n\nUSAGE:\n    {usage}\n\nOPTIONS:\n{options}",
 )]
 #[allow(clippy::struct_excessive_bools)]
-/// Fast Port Scanner built in Rust.
-/// WARNING Do not use this program against sensitive infrastructure since the
-/// specified server may not be able to handle this many socket connections at once.
+/// 用 Rust 构建的快速端口扫描器。
+/// 警告：不要对敏感的基础设施使用此程序，因为指定的服务器可能无法同时处理这么多 socket 连接。
 /// - Discord  <http://discord.skerritt.blog>
 /// - GitHub <https://github.com/RustScan/RustScan>
 pub struct Opts {
-    /// A comma-delimited list or newline-delimited file of separated CIDRs, IPs, or hosts to be scanned.
+    /// 以逗号分隔的列表或以换行符分隔的文件，其中包含要扫描的 CIDR、IP 或主机。
     #[arg(short, long, value_delimiter = ',')]
     pub addresses: Vec<String>,
 
-    /// A list of comma separated ports to be scanned. Example: 80,443,8080.
+    /// 要扫描的逗号分隔端口列表。示例：80,443,8080。
     #[arg(short, long, value_delimiter = ',')]
     pub ports: Option<Vec<u16>>,
 
-    /// A range of ports with format start-end. Example: 1-1000.
+    /// 格式为 start-end 的端口范围。示例：1-1000。
     #[arg(short, long, conflicts_with = "ports", value_parser = parse_range)]
     pub range: Option<PortRange>,
 
-    /// Whether to ignore the configuration file or not.
+    /// 是否忽略配置文件。
     #[arg(short, long)]
     pub no_config: bool,
 
-    /// Hide the banner
+    /// 隐藏 banner
     #[arg(long)]
     pub no_banner: bool,
 
-    /// Custom path to config file
+    /// 配置文件的自定义路径
     #[arg(short, long, value_parser)]
     pub config_path: Option<PathBuf>,
 
-    /// Greppable mode. Only output the ports. No Nmap. Useful for grep or outputting to a file.
+    /// Grep 模式。仅输出端口。没有 Nmap。用于 grep 或输出到文件。
     #[arg(short, long)]
     pub greppable: bool,
 
-    /// Accessible mode. Turns off features which negatively affect screen readers.
+    /// 无障碍模式。关闭会对屏幕阅读器产生负面影响的功能。
     #[arg(long)]
     pub accessible: bool,
 
-    /// A comma-delimited list or file of DNS resolvers.
+    /// 逗号分隔的列表或文件，包含 DNS 解析器。
     #[arg(long)]
     pub resolver: Option<String>,
 
-    /// The batch size for port scanning, it increases or slows the speed of
-    /// scanning. Depends on the open file limit of your OS.  If you do 65535
-    /// it will do every port at the same time. Although, your OS may not
-    /// support this.
+    /// 端口扫描的批处理大小，它会增加或减慢扫描速度。
+    /// 取决于操作系统的打开文件限制。如果你设置为 65535，
+    /// 它将同时扫描每个端口。虽然你的操作系统可能不支持这一点。
     #[arg(short, long, default_value = "4500")]
     pub batch_size: usize,
 
-    /// The timeout in milliseconds before a port is assumed to be closed.
+    /// 在假定端口关闭之前的超时时间（以毫秒为单位）。
     #[arg(short, long, default_value = "1500")]
     pub timeout: u32,
 
-    /// The number of tries before a port is assumed to be closed.
-    /// If set to 0, rustscan will correct it to 1.
+    /// 在假定端口关闭之前的重试次数。
+    /// 如果设置为 0，rustscan 将将其更正为 1。
     #[arg(long, default_value = "1")]
     pub tries: u8,
 
-    /// Automatically ups the ULIMIT with the value you provided.
+    /// 自动使用你提供的值提高 ULIMIT。
     #[arg(short, long)]
     pub ulimit: Option<usize>,
 
-    /// The order of scanning to be performed. The "serial" option will
-    /// scan ports in ascending order while the "random" option will scan
-    /// ports randomly.
+    /// 要执行的扫描顺序。"serial" 选项将按升序扫描端口，
+    /// 而 "random" 选项将随机扫描端口。
     #[arg(long, value_enum, ignore_case = true, default_value = "serial")]
     pub scan_order: ScanOrder,
 
-    /// Level of scripting required for the run.
+    /// 运行所需的脚本级别。
     #[arg(long, value_enum, ignore_case = true, default_value = "default")]
     pub scripts: ScriptsRequired,
 
-    /// Use the top 1000 ports.
+    /// 使用前 1000 个端口。
     #[arg(long)]
     pub top: bool,
 
-    /// The Script arguments to run.
-    /// To use the argument -A, end RustScan's args with '-- -A'.
-    /// Example: 'rustscan -t 1500 -a 127.0.0.1 -- -A -sC'.
-    /// This command adds -Pn -vvv -p $PORTS automatically to nmap.
-    /// For things like --script '(safe and vuln)' enclose it in quotations marks \"'(safe and vuln)'\"
+    /// 要运行的脚本参数。
+    /// 要使用参数 -A，请以 '-- -A' 结束 RustScan 的参数。
+    /// 示例：'rustscan -t 1500 -a 127.0.0.1 -- -A -sC'。
+    /// 此命令会自动将 -Pn -vvv -p $PORTS 添加到 nmap。
+    /// 对于像 --script '(safe and vuln)' 这样的东西，请将其括在引号中 \"'(safe and vuln)'\"
     #[arg(last = true)]
     pub command: Vec<String>,
 
-    /// A list of comma separated ports to be excluded from scanning. Example: 80,443,8080.
+    /// 要从扫描中排除的逗号分隔端口列表。示例：80,443,8080。
     #[arg(short, long, value_delimiter = ',')]
     pub exclude_ports: Option<Vec<u16>>,
 
-    /// A list of comma separated CIDRs, IPs, or hosts to be excluded from scanning.
+    /// 要从扫描中排除的逗号分隔 CIDR、IP 或主机列表。
     #[arg(short = 'x', long = "exclude-addresses", value_delimiter = ',')]
     pub exclude_addresses: Option<Vec<String>>,
 
-    /// UDP scanning mode, finds UDP ports that send back responses
+    /// UDP 扫描模式，查找发回响应的 UDP 端口
     #[arg(long)]
     pub udp: bool,
 }
@@ -178,8 +175,7 @@ impl Opts {
         opts
     }
 
-    /// Reads the command line arguments into an Opts struct and merge
-    /// values found within the user configuration file.
+    /// 将命令行参数读取到 Opts 结构中，并合并在用户配置文件中找到的值。
     pub fn merge(&mut self, config: &Config) {
         if !self.no_config {
             self.merge_required(config);
@@ -215,7 +211,7 @@ impl Opts {
             }
         }
 
-        // Only use top ports when the user asks for them
+        // 仅当用户要求时才使用 top 端口
         if self.top && config.ports.is_some() {
             self.ports = config.ports.clone();
         }
@@ -251,9 +247,8 @@ impl Default for Opts {
     }
 }
 
-/// Struct used to deserialize the options specified within our config file.
-/// These will be further merged with our command line arguments in order to
-/// generate the final Opts struct.
+/// 用于反序列化配置文件中指定的选项的结构。
+/// 这些将进一步与我们的命令行参数合并，以生成最终的 Opts 结构。
 #[cfg(not(tarpaulin_include))]
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -280,10 +275,9 @@ pub struct Config {
 #[allow(clippy::doc_link_with_quotes)]
 #[allow(clippy::manual_unwrap_or_default)]
 impl Config {
-    /// Reads the configuration file with TOML format and parses it into a
-    /// Config struct.
+    /// 读取 TOML 格式的配置文件并将其解析为 Config 结构。
     ///
-    /// # Format
+    /// # 格式
     ///
     /// addresses = ["127.0.0.1", "127.0.0.1"]
     /// ports = [80, 443, 8080]
@@ -321,7 +315,7 @@ impl Config {
     }
 }
 
-/// Constructs default path to config toml
+/// 构造 config toml 的默认路径
 pub fn default_config_path() -> PathBuf {
     let Some(mut config_path) = dirs::config_dir() else {
         panic!("Could not infer config file path.");
@@ -330,7 +324,7 @@ pub fn default_config_path() -> PathBuf {
     config_path
 }
 
-/// Returns the deprecated home directory config path used for backwards compatibility.
+/// 返回用于向后兼容的已弃用的主目录配置路径。
 pub fn old_default_config_path() -> PathBuf {
     let Some(mut config_path) = dirs::home_dir() else {
         panic!("Could not infer config file path.");

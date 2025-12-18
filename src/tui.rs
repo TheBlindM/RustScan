@@ -1,17 +1,17 @@
-//! Utilities for terminal output during scanning.
+//! 扫描期间终端输出的实用工具。
 
-/// Terminal User Interface Module for RustScan
-/// Defines macros to use
+/// RustScan 的终端用户界面模块
+/// 定义要使用的宏
 #[macro_export]
 macro_rules! warning {
     ($name:expr) => {
         println!("{} {}", ansi_term::Colour::Red.bold().paint("[!]"), $name);
     };
     ($name:expr, $greppable:expr, $accessible:expr) => {
-        // if not greppable then print, otherwise no else statement so do not print.
+        // 如果不是 greppable 模式则打印，否则没有 else 语句所以不打印。
         if !$greppable {
             if $accessible {
-                // Don't print the ascii art
+                // 不打印 ascii art
                 println!("{}", $name);
             } else {
                 println!("{} {}", ansi_term::Colour::Red.bold().paint("[!]"), $name);
@@ -26,10 +26,10 @@ macro_rules! detail {
         println!("{} {}", ansi_term::Colour::Blue.bold().paint("[~]"), $name);
     };
     ($name:expr, $greppable:expr, $accessible:expr) => {
-        // if not greppable then print, otherwise no else statement so do not print.
+        // 如果不是 greppable 模式则打印，否则没有 else 语句所以不打印。
         if !$greppable {
             if $accessible {
-                // Don't print the ascii art
+                // 不打印 ascii art
                 println!("{}", $name);
             } else {
                 println!("{} {}", ansi_term::Colour::Blue.bold().paint("[~]"), $name);
@@ -48,10 +48,10 @@ macro_rules! output {
         );
     };
     ($name:expr, $greppable:expr, $accessible:expr) => {
-        // if not greppable then print, otherwise no else statement so do not print.
+        // 如果不是 greppable 模式则打印，否则没有 else 语句所以不打印。
         if !$greppable {
             if $accessible {
-                // Don't print the ascii art
+                // 不打印 ascii art
                 println!("{}", $name);
             } else {
                 println!(
@@ -66,7 +66,7 @@ macro_rules! output {
 
 #[macro_export]
 macro_rules! funny_opening {
-    // prints a funny quote / opening
+    // 打印一个有趣的引用 / 开场白
     () => {
         use rand::seq::IndexedRandom;
         let quotes = vec![

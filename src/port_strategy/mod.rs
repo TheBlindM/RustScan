@@ -1,14 +1,14 @@
-//! Provides a means to hold configuration options specifically for port scanning.
+//! 提供了一种保存端口扫描配置选项的方法。
 mod range_iterator;
 use crate::input::{PortRange, ScanOrder};
 use rand::rng;
 use rand::seq::SliceRandom;
 use range_iterator::RangeIterator;
 
-/// Represents options of port scanning.
+/// 表示端口扫描的选项。
 ///
-/// Right now all these options involve ranges, but in the future
-/// it will also contain custom lists of ports.
+/// 目前所有这些选项都涉及范围，但在将来
+/// 它也将包含自定义端口列表。
 #[derive(Debug)]
 pub enum PortStrategy {
     Manual(Vec<u16>),
@@ -17,8 +17,10 @@ pub enum PortStrategy {
 }
 
 impl PortStrategy {
+    /// 根据给定的范围、端口列表和扫描顺序选择端口策略。
     pub fn pick(range: &Option<PortRange>, ports: Option<Vec<u16>>, order: ScanOrder) -> Self {
         match order {
+            // 如果是顺序扫描且没有指定端口列表，则使用 SerialRange
             ScanOrder::Serial if ports.is_none() => {
                 let range = range.as_ref().unwrap();
                 PortStrategy::Serial(SerialRange {
@@ -26,6 +28,7 @@ impl PortStrategy {
                     end: range.end,
                 })
             }
+            // 如果是随机扫描且没有指定端口列表，则使用 RandomRange
             ScanOrder::Random if ports.is_none() => {
                 let range = range.as_ref().unwrap();
                 PortStrategy::Random(RandomRange {
@@ -33,7 +36,9 @@ impl PortStrategy {
                     end: range.end,
                 })
             }
+            // 如果是顺序扫描且有指定端口列表，则使用 Manual 策略
             ScanOrder::Serial => PortStrategy::Manual(ports.unwrap()),
+            // 如果是随机扫描且有指定端口列表，则打乱端口列表顺序后使用 Manual 策略
             ScanOrder::Random => {
                 let mut rng = rng();
                 let mut ports = ports.unwrap();
@@ -43,6 +48,7 @@ impl PortStrategy {
         }
     }
 
+    /// 生成扫描顺序的端口列表。
     pub fn order(&self) -> Vec<u16> {
         match self {
             PortStrategy::Manual(ports) => ports.clone(),
@@ -52,14 +58,13 @@ impl PortStrategy {
     }
 }
 
-/// Trait associated with a port strategy. Each PortStrategy must be able
-/// to generate an order for future port scanning.
+/// 与端口策略关联的 Trait。每个 PortStrategy 必须能够
+/// 为未来的端口扫描生成一个顺序。
 trait RangeOrder {
     fn generate(&self) -> Vec<u16>;
 }
 
-/// As the name implies SerialRange will always generate a vector in
-/// ascending order.
+/// 顾名思义，SerialRange 将始终按升序生成一个向量。
 #[derive(Debug)]
 pub struct SerialRange {
     start: u16,
@@ -72,8 +77,8 @@ impl RangeOrder for SerialRange {
     }
 }
 
-/// As the name implies RandomRange will always generate a vector with
-/// a random order. This vector is built following the LCG algorithm.
+/// 顾名思义，RandomRange 将始终生成一个具有随机顺序的向量。
+/// 该向量是按照 LCG 算法构建的。
 #[derive(Debug)]
 pub struct RandomRange {
     start: u16,
@@ -81,15 +86,14 @@ pub struct RandomRange {
 }
 
 impl RangeOrder for RandomRange {
-    // Right now using RangeIterator and generating a range + shuffling the
-    // vector is pretty much the same. The advantages of it will come once
-    // we have to generate different ranges for different IPs without storing
-    // actual vectors.
+    // 目前使用 RangeIterator 生成范围 + 打乱向量
+    // 几乎是一样的。它的优势在于一旦我们
+    // 必须为不同的 IP 生成不同的范围而不存储
+    // 实际的向量。
     //
-    // Another benefit of RangeIterator is that it always generate a range with
-    // a certain distance between the items in the Array. The chances of having
-    // port numbers close to each other are pretty slim due to the way the
-    // algorithm works.
+    // RangeIterator 的另一个好处是它总是生成一个
+    // 数组中项目之间具有一定距离的范围。由于算法的工作方式，
+    // 端口号彼此接近的几率非常小。
     fn generate(&self) -> Vec<u16> {
         RangeIterator::new(self.start.into(), self.end.into()).collect()
     }

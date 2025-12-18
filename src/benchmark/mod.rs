@@ -1,24 +1,24 @@
-//! Provides functionality to capture timing information for scans.
+//! 提供用于捕获扫描计时信息的功能。
 //!
-//! # Usage
+//! # 用法
 //!
 //! ```rust
-//! // Initiate Benchmark vector
+//! // 初始化 Benchmark 向量
 //! # use rustscan::benchmark::{Benchmark, NamedTimer};
 //! # use log::info;
 //! let mut bm = Benchmark::init();
-//! // Start named timer with name
+//! // 启动名为 "Example Bench" 的计时器
 //! let mut example_bench = NamedTimer::start("Example Bench");
-//! // Stop named timer
+//! // 停止计时器
 //! example_bench.end();
-//! // Add named timer to Benchmarks
+//! // 将计时器添加到 Benchmarks 中
 //! bm.push(example_bench);
-//! // Print Benchmark Summary
+//! // 打印 Benchmark 摘要
 //! info!("{}", bm.summary());
 //! ```
 use std::time::Instant;
 
-/// A Benchmark struct to hold NamedTimers with name, start and end Instants,
+/// Benchmark 结构体用于保存 NamedTimers，包含名称、开始和结束时间。
 #[derive(Debug)]
 pub struct Benchmark {
     named_timers: Vec<NamedTimer>,
@@ -34,10 +34,10 @@ impl Benchmark {
         self.named_timers.push(timer);
     }
 
-    /// Summary of the benchmarks will destruct the vector,
-    /// formats every element the same way and return
-    /// a single String with all the available information
-    /// for easy printing
+    /// 性能测试摘要将解构向量，
+    /// 以相同的方式格式化每个元素，并返回
+    /// 包含所有可用信息的单个字符串，
+    /// 以便轻松打印。
     pub fn summary(&self) -> String {
         let mut summary = String::from("\nRustScan Benchmark Summary");
 
@@ -55,10 +55,10 @@ impl Benchmark {
     }
 }
 
-/// The purpose of NamedTimer is to hold a name,
-/// start Instant and end Instant for a specific timer.
-/// The given name will be presented in the benchmark summary,
-/// start and end Instants will be used for calculating runtime.
+/// NamedTimer 的目的是保存特定计时器的名称、
+/// 开始时间和结束时间。
+/// 给定的名称将显示在基准测试摘要中，
+/// 开始和结束时间将用于计算运行时间。
 #[derive(Debug)]
 pub struct NamedTimer {
     name: &'static str,

@@ -1,4 +1,4 @@
-//! Core functionality for actual scanning behaviour.
+//! 实际扫描行为的核心功能。
 use crate::generated::get_parsed_data;
 use crate::port_strategy::PortStrategy;
 use log::debug;
@@ -19,12 +19,12 @@ use std::{
     time::Duration,
 };
 
-/// The class for the scanner
-/// IP is data type IpAddr and is the IP address
-/// start & end is where the port scan starts and ends
-/// batch_size is how many ports at a time should be scanned
-/// Timeout is the time RustScan should wait before declaring a port closed. As datatype Duration.
-/// greppable is whether or not RustScan should print things, or wait until the end to print only the ip and open ports.
+/// 扫描器类
+/// IP 是 IpAddr 数据类型，表示 IP 地址
+/// start & end 是端口扫描的起始和结束位置
+/// batch_size 是一次扫描多少个端口
+/// Timeout 是 RustScan 在声明端口关闭之前应该等待的时间。数据类型为 Duration。
+/// greppable 是 RustScan 是否应该打印内容，或者等到最后只打印 ip 和开放端口。
 #[cfg(not(tarpaulin_include))]
 #[derive(Debug)]
 pub struct Scanner {
@@ -39,7 +39,7 @@ pub struct Scanner {
     udp: bool,
 }
 
-// Allowing too many arguments for clippy.
+// 允许过多的参数，为了通过 clippy 检查。
 #[allow(clippy::too_many_arguments)]
 impl Scanner {
     pub fn new(
@@ -66,9 +66,9 @@ impl Scanner {
         }
     }
 
-    /// Runs scan_range with chunk sizes
-    /// If you want to run RustScan normally, this is the entry point used
-    /// Returns all open ports as `Vec<u16>`
+    /// 使用块大小运行 scan_range
+    /// 如果你想正常运行 RustScan，这是使用的入口点
+    /// 返回所有开放端口作为 `Vec<u16>`
     pub async fn run(&self) -> Vec<SocketAddr> {
         let ports: Vec<u16> = self
             .port_strategy
@@ -77,6 +77,8 @@ impl Scanner {
             .filter(|&port| !self.exclude_ports.contains(port))
             .copied()
             .collect();
+
+        // SocketIterator 是RustScan 针对socket专门实现的笛卡尔积迭代器，
         let mut socket_iterator: SocketIterator = SocketIterator::new(&self.ips, &ports);
         let mut open_sockets: Vec<SocketAddr> = Vec::new();
         let mut ftrs = FuturesUnordered::new();
@@ -117,20 +119,20 @@ impl Scanner {
         open_sockets
     }
 
-    /// Given a socket, scan it self.tries times.
-    /// Turns the address into a SocketAddr
-    /// Deals with the `<result>` type
-    /// If it experiences error ErrorKind::Other then too many files are open and it Panics!
-    /// Else any other error, it returns the error in Result as a string
-    /// If no errors occur, it returns the port number in Result to signify the port is open.
-    /// This function mainly deals with the logic of Results handling.
-    /// # Example
+    /// 给定一个 socket，扫描它 self.tries 次。
+    /// 将地址转换为 SocketAddr
+    /// 处理 `<result>` 类型
+    /// 如果遇到错误 ErrorKind::Other，则打开的文件太多，会 Panic！
+    /// 否则任何其他错误，它会在 Result 中作为字符串返回错误
+    /// 如果没有发生错误，它会在 Result 中返回端口号以表示端口已打开。
+    /// 此函数主要处理结果处理的逻辑。
+    /// # 示例
     ///
     /// ```compile_fail
     /// scanner.scan_socket(socket)
     /// ```
     ///
-    /// Note: `self` must contain `self.ip`.
+    /// 注意：`self` 必须包含 `self.ip`。
     async fn scan_socket(
         &self,
         socket: SocketAddr,
@@ -198,18 +200,18 @@ impl Scanner {
         )))
     }
 
-    /// Performs the connection to the socket with timeout
-    /// # Example
+    /// 执行带超时的 socket 连接
+    /// # 示例
     ///
     /// ```compile_fail
     /// # use std::net::{IpAddr, Ipv6Addr, SocketAddr};
     /// let port: u16 = 80;
-    /// // ip is an IpAddr type
+    /// // ip 是 IpAddr 类型
     /// let ip = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
     /// let socket = SocketAddr::new(ip, port);
     /// scanner.connect(socket);
-    /// // returns Result which is either Ok(stream) for port is open, or Er for port is closed.
-    /// // Timeout occurs after self.timeout seconds
+    /// // 返回 Result，如果是 Ok(stream) 表示端口开放，Err 表示端口关闭。
+    /// // 超时发生在 self.timeout 秒后
     /// ```
     ///
     async fn connect(&self, socket: SocketAddr) -> io::Result<TcpStream> {
@@ -221,18 +223,18 @@ impl Scanner {
         Ok(stream)
     }
 
-    /// Binds to a UDP socket so we can send and receive packets
-    /// # Example
+    /// 绑定到 UDP socket 以便我们可以发送和接收数据包
+    /// # 示例
     ///
     /// ```compile_fail
     /// # use std::net::{IpAddr, Ipv6Addr, SocketAddr};
     /// let port: u16 = 80;
-    /// // ip is an IpAddr type
+    /// // ip 是 IpAddr 类型
     /// let ip = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
     /// let socket = SocketAddr::new(ip, port);
     /// scanner.udp_bind(socket);
-    /// // returns Result which is either Ok(stream) for port is open, or Err for port is closed.
-    /// // Timeout occurs after self.timeout seconds
+    /// // 返回 Result，如果是 Ok(stream) 表示端口开放，Err 表示端口关闭。
+    /// // 超时发生在 self.timeout 秒后
     /// ```
     ///
     async fn udp_bind(&self, socket: SocketAddr) -> io::Result<UdpSocket> {
@@ -244,21 +246,21 @@ impl Scanner {
         UdpSocket::bind(local_addr).await
     }
 
-    /// Performs a UDP scan on the specified socket with a payload and wait duration
-    /// # Example
+    /// 在指定的 socket 上执行 UDP 扫描，带有有效载荷和等待时间
+    /// # 示例
     ///
     /// ```compile_fail
     /// # use std::net::{IpAddr, Ipv6Addr, SocketAddr};
     /// # use std::time::Duration;
     /// let port: u16 = 123;
-    /// // ip is an IpAddr type
+    /// // ip 是 IpAddr 类型
     /// let ip = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
     /// let socket = SocketAddr::new(ip, port);
     /// let payload = vec![0, 1, 2, 3];
     /// let wait = Duration::from_secs(1);
     /// let result = scanner.udp_scan(socket, payload, wait).await;
-    /// // returns Result which is either Ok(true) if response received, or Ok(false) if timed out.
-    /// // Err is returned for other I/O errors.
+    /// // 返回 Result，如果是 Ok(true) 表示收到响应，Ok(false) 表示超时。
+    /// // Err 返回其他 I/O 错误。
     async fn udp_scan(
         &self,
         socket: SocketAddr,
@@ -294,7 +296,7 @@ impl Scanner {
         }
     }
 
-    /// Formats and prints the port status
+    /// 格式化并打印端口状态
     fn fmt_ports(&self, socket: SocketAddr) {
         if !self.greppable {
             if self.accessible {

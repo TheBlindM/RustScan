@@ -1,77 +1,64 @@
-//! Scripting Engine to run scripts based on tags.
+//! 基于标签运行脚本的脚本引擎。
 //!
-//! This module serves to filter and run the scripts selected by the user.
+//! 该模块用于过滤和运行用户选择的脚本。
 //!
-//! A new commandline and configuration file option was added.
+//! 添加了一个新的命令行和配置文件选项。
 //!
 //! ## `--scripts`
 //!
 //! ### `default`
 //!
-//! This is the default behavior, like as it was from the beginning of RustScan.
+//! 这是默认行为，就像 RustScan 一开始那样。
 //!
-//! The user do not have to chose anything for this. This is the only script
-//! embedded in RustScan running as default.
+//! 用户无需为此做任何选择。这是默认运行的唯一嵌入在 RustScan 中的脚本。
 //!
 //! ### `none`
 //!
-//! The user have to use the `--scripts none` commandline argument or `scripts =
-//! "none"` in the config file.
+//! 用户必须使用 `--scripts none` 命令行参数或在配置文件中使用 `scripts = "none"`。
 //!
-//! None of the scripts will run, this replaces the removed `--no-nmap` option.
+//! 不会运行任何脚本，这取代了已移除的 `--no-nmap` 选项。
 //!
 //! ### `custom`
 //!
-//! The user have to use the `--scripts custom` commandline argument or
-//! `scripts = "custom"` in the config file.
+//! 用户必须使用 `--scripts custom` 命令行参数或在配置文件中使用 `scripts = "custom"`。
 //!
-//! RustScan will look for the script configuration file in the user's home
-//! dir: `home_dir/.rustscan_scripts.toml`
+//! RustScan 将在用户的主目录中查找脚本配置文件：`home_dir/.rustscan_scripts.toml`
 //!
-//! The config file have 3 optional fields: `tag`, `developer` and `port`. Just
-//! the `tag` field will be used forther in the process.
+//! 配置文件有 3 个可选字段：`tag`、`developer` 和 `port`。在后续过程中仅使用 `tag` 字段。
 //!
-//! RustScan will also look for available scripts in the user's home dir:
-//! `home_dir/.rustscan_scripts` and will try to read all the files, and parse
-//! them into a vector of [`ScriptFile`].
+//! RustScan 还将在用户的主目录中查找可用脚本：`home_dir/.rustscan_scripts`，
+//! 并尝试读取所有文件，将它们解析为 [`ScriptFile`] 的向量。
 //!
-//! Filtering on tags means the tags found in the `rustscan_scripts.toml` file
-//! will also have to be present in the [`ScriptFile`], otherwise the script
-//! will not be selected.
+//! 基于标签过滤意味着在 `rustscan_scripts.toml` 文件中找到的标签也必须存在于 [`ScriptFile`] 中，
+//! 否则将不会选择该脚本。
 //!
-//! All of the `rustscan_script.toml` tags have to be present at minimum in a
-//! [`ScriptFile`] to get selected, but can be also more.
+//! `rustscan_script.toml` 中的所有标签必须至少存在于 [`ScriptFile`] 中才能被选中，
+//! 但脚本文件中可以包含更多标签。
 //!
-//! Config file example:
+//! 配置文件示例：
 //!
 //! - `fixtures/test_rustscan_scripts.toml`
 //!
-//! Script file examples:
+//! 脚本文件示例：
 //!
 //! - `fixtures/test_script.py`
 //! - `fixtures/test_script.pl`
 //! - `fixtures/test_script.sh`
 //! - `fixtures/test_script.txt`
 //!
-//! `call_format` in script files can be of 2 variants:
+//! 脚本文件中的 `call_format` 可以有 2 种变体：
 //!
-//! One is where all of the possible tags `{{script}}`, `{{ip}}` and `{{port}}`
-//! are there.
+//! 一种是包含所有可能的标签 `{{script}}`、`{{ip}}` 和 `{{port}}`。
 //!
-//! - The `{{script}}` part will be replaced with the scriptfile full path
-//!   gathered while parsing available scripts.
-//! - The `{{ip}}` part will be replaced with the ip we got from the scan.
-//! - The `{{port}}` part will be reaplced with the ports separated with the
-//!   `ports_separator` found in the script file
+//! - `{{script}}` 部分将被替换为解析可用脚本时获取的脚本文件完整路径。
+//! - `{{ip}}` 部分将被替换为我们从扫描中获得的 IP。
+//! - `{{port}}` 部分将被替换为用脚本文件中找到的 `ports_separator` 分隔的端口。
 //!
-//! And when there is only `{{ip}}` and `{{port}}` is in the format, only those
-//! will be replaced with the arguments from the scan.
+//! 另一种是格式中只有 `{{ip}}` 和 `{{port}}`，只有这些将被替换为扫描的参数。
 //!
-//! This makes it easy to run a system installed command like `nmap`, and give
-//! any kind of arguments to it.
+//! 这使得运行像 `nmap` 这样的系统安装命令并为其提供任何类型的参数变得容易。
 //!
-//! If the format is different, the script will be silently discarded and will
-//! not run. With the `Debug` option it's possible to see where it goes wrong.
+//! 如果格式不同，脚本将被静默丢弃且不运行。使用 `Debug` 选项可以看到出错的地方。
 
 #![allow(clippy::module_name_repetitions)]
 
@@ -123,7 +110,7 @@ pub fn init_scripts(scripts: &ScriptsRequired) -> Result<Vec<ScriptFile>> {
             let parsed_scripts = parse_scripts(script_paths);
             debug!("Scripts parsed \n{parsed_scripts:?}");
 
-            // Only Scripts that contain all the tags found in ScriptConfig will be selected.
+            // 只有包含在 ScriptConfig 中找到的所有标签的脚本才会被选择。
             if let Some(config_hashset) = script_config.tags {
                 for script in parsed_scripts {
                     if let Some(script_hashset) = &script.tags {
@@ -163,25 +150,25 @@ pub fn parse_scripts(scripts: Vec<PathBuf>) -> Vec<ScriptFile> {
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct Script {
-    // Path to the script itself.
+    // 脚本本身的路径。
     path: Option<PathBuf>,
 
-    // Ip got from scanner.
+    // 从扫描器获取的 IP。
     ip: IpAddr,
 
-    // Ports found with portscan.
+    // 端口扫描发现的端口。
     open_ports: Vec<u16>,
 
-    // Port found in ScriptFile, if defined only this will run with the ip.
+    // 在 ScriptFile 中发现的端口，如果定义了，只有这个端口会与 IP 一起运行。
     trigger_port: Option<String>,
 
-    // Character to join ports in case we want to use a string format of them, for example nmap -p.
+    // 用于连接端口的字符，以防我们想要使用它们的字符串格式，例如 nmap -p。
     ports_separator: Option<String>,
 
-    // Tags found in ScriptFile.
+    // 在 ScriptFile 中发现的标签。
     tags: Option<Vec<String>>,
 
-    // The format how we want the script to run.
+    // 我们希望脚本运行的格式。
     call_format: Option<String>,
 }
 
@@ -221,7 +208,7 @@ impl Script {
         }
     }
 
-    // Some variables get changed before read, and compiler throws warning on warn(unused_assignments)
+    // 一些变量在读取之前被更改，编译器会对 warn(unused_assignments) 发出警告
     #[allow(unused_assignments)]
     pub fn run(self) -> Result<String> {
         debug!("run self {:?}", &self);

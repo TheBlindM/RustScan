@@ -1,4 +1,4 @@
-//! Provides functions to parse input IP addresses, CIDRs or files.
+//! 提供解析输入 IP 地址、CIDR 或文件的功能。
 use std::collections::BTreeSet;
 use std::fs::{self, File};
 use std::io::{prelude::*, BufReader};
@@ -16,9 +16,9 @@ use log::debug;
 use crate::input::Opts;
 use crate::warning;
 
-/// Parses the string(s) into IP addresses.
+/// 将字符串解析为 IP 地址。
 ///
-/// Goes through all possible IP inputs (files or via argparsing).
+/// 遍历所有可能的 IP 输入（文件或通过参数解析）。
 ///
 /// ```rust
 /// # use rustscan::input::Opts;
@@ -29,7 +29,7 @@ use crate::warning;
 /// let ips = parse_addresses(&opts);
 /// ```
 ///
-/// Finally, any duplicates are removed to avoid excessive scans.
+/// 最后，删除任何重复项以避免过度扫描。
 pub fn parse_addresses(input: &Opts) -> Vec<IpAddr> {
     let mut ips: Vec<IpAddr> = Vec::new();
     let mut unresolved_addresses: Vec<&str> = Vec::new();
@@ -44,7 +44,7 @@ pub fn parse_addresses(input: &Opts) -> Vec<IpAddr> {
         }
     }
 
-    // If we got to this point this can only be a file path or the wrong input.
+    // 如果我们到了这一步，这只能是一个文件路径或错误的输入。
     for file_path in unresolved_addresses {
         let file_path = Path::new(file_path);
 
@@ -71,20 +71,20 @@ pub fn parse_addresses(input: &Opts) -> Vec<IpAddr> {
 
     let excluded_cidrs = parse_excluded_networks(&input.exclude_addresses, &backup_resolver);
 
-    // Remove duplicated/excluded IPs.
+    // 移除重复/排除的 IP。
     let mut seen = BTreeSet::new();
     ips.retain(|ip| seen.insert(*ip) && !excluded_cidrs.iter().any(|cidr| cidr.contains(ip)));
 
     ips
 }
 
-/// Given a string, parse it as a host, IP address, or CIDR.
+/// 给定一个字符串，将其解析为主机、IP 地址或 CIDR。
 ///
-/// This allows us to pass files as hosts or cidr or IPs easily
-/// Call this every time you have a possible IP-or-host.
+/// 这允许我们轻松地将文件作为主机、CIDR 或 IP 传递。
+/// 每次有一个可能的 IP 或主机时调用此函数。
 ///
-/// If the address is a domain, we can self-resolve the domain locally
-/// or resolve it by dns resolver list.
+/// 如果地址是一个域名，我们可以在本地自行解析该域名
+/// 或通过 DNS 解析器列表进行解析。
 ///
 /// ```rust
 /// # use rustscan::address::parse_address;
@@ -93,23 +93,23 @@ pub fn parse_addresses(input: &Opts) -> Vec<IpAddr> {
 /// ```
 pub fn parse_address(address: &str, resolver: &Resolver) -> Vec<IpAddr> {
     if let Ok(addr) = IpAddr::from_str(address) {
-        // `address` is an IP string
+        // `address` 是一个 IP 字符串
         vec![addr]
     } else if let Ok(net_addr) = IpInet::from_str(address) {
-        // `address` is a CIDR string
+        // `address` 是一个 CIDR 字符串
         net_addr.network().into_iter().addresses().collect()
     } else {
-        // `address` is a hostname or DNS name
-        // attempt default DNS lookup
+        // `address` 是一个主机名或 DNS 名称
+        // 尝试默认 DNS 查询
         match format!("{address}:80").to_socket_addrs() {
             Ok(mut iter) => vec![iter.next().unwrap().ip()],
-            // default lookup didn't work, so try again with the dedicated resolver
+            // 默认查询不起作用，因此尝试使用专用解析器再次查询
             Err(_) => resolve_ips_from_host(address, resolver),
         }
     }
 }
 
-/// Uses DNS to get the IPS associated with host
+/// 使用 DNS 获取与主机关联的 IP
 fn resolve_ips_from_host(source: &str, backup_resolver: &Resolver) -> Vec<IpAddr> {
     let mut ips: Vec<IpAddr> = Vec::new();
 
@@ -124,12 +124,12 @@ fn resolve_ips_from_host(source: &str, backup_resolver: &Resolver) -> Vec<IpAddr
     ips
 }
 
-/// Parses excluded networks from a list of addresses.
+/// 从地址列表中解析排除的网络。
 ///
-/// This function handles three types of inputs:
-/// 1. CIDR notation (e.g. "192.168.0.0/24")
-/// 2. Single IP addresses (e.g. "192.168.0.1")
-/// 3. Hostnames that need to be resolved (e.g. "example.com")
+/// 此函数处理三种类型的输入：
+/// 1. CIDR 表示法（例如 "192.168.0.0/24"）
+/// 2. 单个 IP 地址（例如 "192.168.0.1"）
+/// 3. 需要解析的主机名（例如 "example.com"）
 ///
 /// ```rust
 /// # use rustscan::address::parse_excluded_networks;
@@ -148,7 +148,7 @@ pub fn parse_excluded_networks(
         .collect()
 }
 
-/// Parses a single address into an IpCidr, handling CIDR notation, IP addresses, and hostnames.
+/// 将单个地址解析为 IpCidr，处理 CIDR 表示法、IP 地址和主机名。
 fn parse_single_excluded_address(addr: &str, resolver: &Resolver) -> Vec<IpCidr> {
     if let Ok(cidr) = IpCidr::from_str(addr) {
         return vec![cidr];
@@ -164,16 +164,14 @@ fn parse_single_excluded_address(addr: &str, resolver: &Resolver) -> Vec<IpCidr>
         .collect()
 }
 
-/// Derive a DNS resolver.
+/// 获取 DNS 解析器。
 ///
-/// 1. if the `resolver` parameter has been set:
-///     1. assume the parameter is a path and attempt to read IPs.
-///     2. parse the input as a comma-separated list of IPs.
-/// 2. if `resolver` is not set:
-///    1. attempt to derive a resolver from the system config. (e.g.
-///       `/etc/resolv.conf` on *nix).
-///    2. finally, build a CloudFlare-based resolver (default
-///       behaviour).
+/// 1. 如果设置了 `resolver` 参数：
+///     1. 假设该参数是一个路径并尝试读取 IP。
+///     2. 将输入解析为逗号分隔的 IP 列表。
+/// 2. 如果未设置 `resolver`：
+///    1. 尝试从系统配置中获取解析器。（例如 *nix 上的 `/etc/resolv.conf`）。
+///    2. 最后，构建一个基于 CloudFlare 的解析器（默认行为）。
 fn get_resolver(resolver: &Option<String>) -> Resolver {
     match resolver {
         Some(r) => {
@@ -202,7 +200,7 @@ fn get_resolver(resolver: &Option<String>) -> Resolver {
     }
 }
 
-/// Parses and input file of IPs for use in DNS resolution.
+/// 解析用于 DNS 解析的 IP 输入文件。
 fn read_resolver_from_file(path: &str) -> Result<Vec<IpAddr>, std::io::Error> {
     let ips = fs::read_to_string(path)?
         .lines()
@@ -213,7 +211,7 @@ fn read_resolver_from_file(path: &str) -> Result<Vec<IpAddr>, std::io::Error> {
 }
 
 #[cfg(not(tarpaulin_include))]
-/// Parses an input file of IPs and uses those
+/// 解析 IP 输入文件并使用这些 IP
 fn read_ips_from_file(
     ips: &std::path::Path,
     backup_resolver: &Resolver,

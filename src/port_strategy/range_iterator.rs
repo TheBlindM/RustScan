@@ -11,22 +11,20 @@ pub struct RangeIterator {
     step: u32,
 }
 
-/// An iterator that follows the `Linear Congruential Generator` algorithm.
+/// 遵循 `线性同余生成器 (Linear Congruential Generator)` 算法的迭代器。
 ///
-/// For more information: <https://en.wikipedia.org/wiki/Linear_congruential_generator>
+/// 更多信息请参阅：<https://en.wikipedia.org/wiki/Linear_congruential_generator>
 impl RangeIterator {
-    /// Receives the start and end of a range and normalize
-    /// these values before selecting a coprime for the end of the range
-    /// which will server as the step for the algorithm.
+    /// 接收范围的起始和结束值，并在选择一个互质数作为算法的步长之前
+    /// 对这些值进行标准化。
     ///
-    /// For example, the range `1000-2500` will be normalized to `0-1500`
-    /// before going through the algorithm.
+    /// 例如，范围 `1000-2500` 在进入算法之前将被标准化为 `0-1500`。
     pub fn new(start: u32, end: u32) -> Self {
         let normalized_end = end - start + 1;
         let step = pick_random_coprime(normalized_end);
 
-        // Randomly choose a number within the range to be the first
-        // and assign it as a pick.
+        // 随机选择范围内的的一个数字作为第一个选择
+        // 并将其赋值给 pick。
         let mut rng = rand::rng();
         let normalized_first_pick = rng.random_range(0..normalized_end);
 
@@ -44,8 +42,8 @@ impl RangeIterator {
 impl Iterator for RangeIterator {
     type Item = u16;
 
-    // The next step is always bound by the formula: N+1 = (N + STEP) % TOP_OF_THE_RANGE
-    // It will only stop once we generate a number equal to the first generated number.
+    // 下一步总是受公式约束：N+1 = (N + STEP) % TOP_OF_THE_RANGE
+    // 只有当我们生成的数字等于第一个生成的数字时，它才会停止。
     fn next(&mut self) -> Option<Self::Item> {
         if !self.active {
             return None;
@@ -54,8 +52,8 @@ impl Iterator for RangeIterator {
         let current_pick = self.normalized_pick;
         let next_pick = (current_pick + self.step) % self.normalized_end;
 
-        // If the next pick is equal to the first pick this means that
-        // we have iterated through the entire range.
+        // 如果下一个选择等于第一个选择，这意味着
+        // 我们已经遍历了整个范围。
         if next_pick == self.normalized_first_pick {
             self.active = false;
         }
@@ -69,16 +67,14 @@ impl Iterator for RangeIterator {
     }
 }
 
-/// The probability that two random integers are coprime to one another
-/// works out to be around 61%, given that we can safely pick a random
-/// number and test it. Just in case we are having a bad day and we cannot
-/// pick a coprime number after 10 tries we just return "end - 1" which
-/// is guaranteed to be a coprime, but won't provide ideal randomization.
+/// 两个随机整数互质的概率大约是 61%，
+/// 鉴于此，我们可以安全地选择一个随机数并进行测试。
+/// 万一我们运气不好，尝试 10 次后仍未选出互质数，
+/// 我们就直接返回 "end - 1"，这保证是互质的，但随机性不理想。
 ///
-/// We pick between "lower_range" and "upper_range" since values too close to
-/// the boundaries, which in these case are the "start" and "end" arguments
-/// would also provide non-ideal randomization as discussed on the paragraph
-/// above.
+/// 我们在 "lower_range" 和 "upper_range" 之间进行选择，
+/// 因为如上段所述，太接近边界（在本例中为 "start" 和 "end" 参数）的值
+/// 也会导致非理想的随机化。
 fn pick_random_coprime(end: u32) -> u32 {
     let range_boundary = end / 4;
     let lower_range = range_boundary;
