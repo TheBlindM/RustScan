@@ -21,11 +21,6 @@ pub struct SocketIterator<'s> {
         Product<Box<std::slice::Iter<'s, u16>>, Box<std::slice::Iter<'s, std::net::IpAddr>>>,
 }
 
-/// 一个迭代器，接收 IP 和端口的切片，并为每个 IP 和端口对返回一个 Socket，
-/// 直到所有这些组合都被用尽。
-/// 这个迭代器的目标是遍历每个 IP 和端口组合，
-/// 而不产生大的内存占用。另一种方法是
-/// 生成一个包含所有这些组合的向量。
 impl<'s> SocketIterator<'s> {
     pub fn new(ips: &'s [IpAddr], ports: &'s [u16]) -> Self {
         let ports_it = Box::new(ports.iter());
